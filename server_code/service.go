@@ -2,31 +2,24 @@ package main
 
 import (
 	"context"
+	"strconv"
+	"github.com/gocolly/colly"
 	"encoding/json"
-
+	"fmt"
+	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"io"
 	"io/ioutil"
+	"github.com/rwcarlsen/goexif/exif"
+	"github.com/rwcarlsen/goexif/mknote"
 	"log"
+	"mongo/server"
 	"net/http"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
 	"time"
-
-	"fmt"
-	"mango/server"
-	// "go.mongodb.org/mongo-driver/mongo"
-
-	// "mango/server"
-	// "../server/dbServer"
-	
-	"github.com/gocolly/colly"
-	"github.com/gorilla/handlers"
-	"github.com/gorilla/mux"
-	"github.com/rwcarlsen/goexif/exif"
-	"github.com/rwcarlsen/goexif/mknote"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 // type service struct {
@@ -41,48 +34,48 @@ type service struct {
 }
 
 type User struct {
-	ID         primitive.ObjectID `json:"id,omitempty" bson:"_id"`
-	Username   string             `json:"username" bson:"username"`
-	Name       string             `json:"name,omitempty" bson:"name"`
+	ID       primitive.ObjectID `json:"id,omitempty" bson:"_id"`
+	Username string             `json:"username" bson:"username"`
+	Name string             `json:"name,omitempty" bson:"name"`
 	Department string             `json:"department,omitempty" bson:"department"`
-	Email      string             `json:"email,omitempty" bson:"email"`
-	Phone      string             `json:"phone,omitempty" bson:"phone"`
-	Password   string             `json:"password" bson:"password"`
-	Identity   string             `json:"identity" bson:"identity"`
+	Email string		`json:"email,omitempty" bson:"email"`
+	Phone string		`json:"phone,omitempty" bson:"phone"`
+	Password string             `json:"password" bson:"password"`
+	Identity string             `json:"identity" bson:"identity"`
 }
 
 type BCdataa struct {
-	ID      primitive.ObjectID `json:"id" bson:"_id"`
-	Tag     string             `json:"tag" bson:"tag"`
-	Name    string             `json:"name,omitempty" bson:"name"`
-	Factory string             `json:"factory" bson:"factory"`
-	Date    string             `json:"date" bson:"date"`
-	Chain   string             `json:"chain" bson:"chain"`
-	Hash    []string           `json:"hash" bson:"hash"`
-	ImgHash []string           `json:"imghash" bson:"imghash"`
-	Image   string             `json:"image" bson:"image"`
-	Lat     string             `json:"lat" bson:"lat"`
-	Long    string             `json:"long" bson:"long"`
-	Dir     string             `json:"dir" bson:"dir"`
-	FocLen  string             `json:"foclen" bson:"foclen"`
-	DDDH    string             `json:"dddh" bson:"dddh"`
+	ID primitive.ObjectID `json:"id" bson:"_id"`
+	Tag       string             `json:"tag" bson:"tag"`
+	Name      string             `json:"name,omitempty" bson:"name"`
+	Factory string `json:"factory" bson:"factory"`
+	Date    string `json:"date" bson:"date"`
+	Chain   string `json:"chain" bson:"chain"`
+	Hash    []string `json:"hash" bson:"hash"`
+	ImgHash []string `json:"imghash" bson:"imghash"`
+	Image   string `json:"image" bson:"image"`
+	Lat string `json:"lat" bson:"lat"`
+	Long string `json:"long" bson:"long"`
+	Dir	string `json:"dir" bson:"dir"`
+	FocLen string `json:"foclen" bson:"foclen"`
+	DDDH string `json:"dddh" bson:"dddh"`
 }
 
 type BCdata struct {
-	ID      primitive.ObjectID `json:"id" bson:"_id"`
-	Tag     string             `json:"tag" bson:"tag"`
-	Name    string             `json:"name,omitempty" bson:"name"`
-	Factory string             `json:"factory" bson:"factory"`
-	Date    string             `json:"date" bson:"date"`
-	Chain   string             `json:"chain" bson:"chain"`
-	Hash    string             `json:"hash" bson:"hash"`
-	ImgHash string             `json:"imghash" bson:"imghash"`
-	Image   string             `json:"image" bson:"image"`
-	Lat     string             `json:"lat" bson:"lat"`
-	Long    string             `json:"long" bson:"long"`
-	Dir     string             `json:"dir" bson:"dir"`
-	FocLen  string             `json:"foclen" bson:"foclen"`
-	DDDH    string             `json:"dddh" bson:"dddh"`
+	ID primitive.ObjectID `json:"id" bson:"_id"`
+	Tag       string             `json:"tag" bson:"tag"`
+	Name      string             `json:"name,omitempty" bson:"name"`
+	Factory string `json:"factory" bson:"factory"`
+	Date    string `json:"date" bson:"date"`
+	Chain   string `json:"chain" bson:"chain"`
+	Hash    string `json:"hash" bson:"hash"`
+	ImgHash string `json:"imghash" bson:"imghash"`
+	Image   string `json:"image" bson:"image"`
+	Lat string `json:"lat" bson:"lat"`
+	Long string `json:"long" bson:"long"`
+	Dir	string `json:"dir" bson:"dir"`
+	FocLen string `json:"foclen" bson:"foclen"`
+	DDDH string `json:"dddh" bson:"dddh"`
 }
 
 type Post struct {
@@ -102,8 +95,8 @@ type Post struct {
 
 type Image struct {
 	ID      primitive.ObjectID `json:"id" bson:"_id"`
-	Hash    []string           `json:"hash" bson:"hash"`
-	ImgHash []string           `json:"imghash" bson:"imghash"`
+	Hash    []string             `json:"hash" bson:"hash"`
+	ImgHash []string             `json:"imghash" bson:"imghash"`
 	Img     string             `json:"img" bson"img"`
 }
 
@@ -159,11 +152,11 @@ func (s *service) Start(dbip string, dbport string, dbname string) error {
 	log.Println("server starting processing...")
 	err = http.ListenAndServeTLS(":"+s.port, "fullchain.pem", "privkey.pem", handlers.CORS(headersOk, originsOk, methodsOk)(r))
 	if err != nil {
-		log.Fatal("ListenAndServe: ", err)
+	    log.Fatal("ListenAndServe: ", err)
 	}
 	// err = http.ListenAndServe(":"+s.port, handlers.CORS(headersOk, originsOk, methodsOk)(r))
 	// if err != nil {
-	//         fmt.Println(err)
+        //         fmt.Println(err)
 	// 	return err
 	// }
 
@@ -193,14 +186,15 @@ func (s *service) upload(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	path := "images/" + "raspberrypi" + "/"
+
+	path := "images/"+"raspberrypi"+"/"
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		os.Mkdir(path, 0777)
+	    os.Mkdir(path, 0777)
 	}
-	date := time.Now().Add(time.Hour * 8).Format("2006-01-02_150405")
+	date := time.Now().Add(time.Hour*8).Format("2006-01-02_150405")
 	// date := time.Now().Add(time.Hour*8).Format("2006-01-02")
 	fmt.Println("filename begin")
-	filename := path + date + ".jpeg"
+	filename := path+date+".jpeg"
 	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE, 0666)
 	if err != nil {
 		fmt.Println(err)
@@ -247,11 +241,11 @@ func (s *service) uploadFile(w http.ResponseWriter, r *http.Request) {
 	file, _, err := r.FormFile("image")
 	id := r.FormValue("id")
 	if err != nil {
-		fmt.Println("form file image err")
+                fmt.Println("form file image err")
 		fmt.Println(err)
 		return
 	}
-	fmt.Println("id:", id)
+        fmt.Println("id:", id)
 	for k, _ := range r.MultipartForm.File {
 		fmt.Println(k)
 	}
@@ -274,16 +268,16 @@ func (s *service) uploadFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idd := k.ID.Hex()
+        idd := k.ID.Hex()
 	// _, err = s.db.Add(ctx, "testing", image)
-	path := "images/" + id + "/"
+	path := "images/"+id+"/"
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		os.Mkdir(path, 0777)
+	    os.Mkdir(path, 0777)
 	}
-	date := time.Now().Add(time.Hour * 8).Format("2006-01-02_150405")
+	date := time.Now().Add(time.Hour*8).Format("2006-01-02_150405")
 	// date := time.Now().Add(time.Hour*8).Format("2006-01-02")
 	fmt.Println("filename begin")
-	filename := path + date + ".jpeg"
+	filename := path+date+".jpeg"
 	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE, 0666)
 	if err != nil {
 		fmt.Println(err)
@@ -351,6 +345,7 @@ func (s *service) uploadFile(w http.ResponseWriter, r *http.Request) {
 	str_long := strconv.FormatFloat(long, 'f', 5, 64)
 	fmt.Println(str_lat, str_long)
 
+
 	focal, err := x.Get(exif.FocalLength)
 	if err != nil {
 		log.Println("can't extract focal length!")
@@ -359,14 +354,15 @@ func (s *service) uploadFile(w http.ResponseWriter, r *http.Request) {
 	focallen := fmt.Sprintf("%.3f", float64(numer)/float64(denom))
 	fmt.Println(focallen)
 
+
 	imgdir, err := x.Get(exif.GPSImgDirection)
 	if err != nil {
 		log.Println("can't extract gps!")
 	}
 	a, b, _ := imgdir.Rat2(0) // retrieve first (only) rat. value
-	gps_dir := fmt.Sprintf("%.15f", float64(a)/float64(b))
+	gps_dir := fmt.Sprintf("%.15f",float64(a)/ float64(b))
 	fmt.Println(gps_dir)
-	cmdd := exec.Command("ssh", "-i", "awsEC-ubuntu.pem", "ubuntu@18.219.71.129", "source ~/.bashrc", ";", "python3", "CalCadAddr.py", "-a", str_long, "-b", str_lat, "-c", gps_dir, "-d", focallen)
+	cmdd := exec.Command("ssh", "-i", "awsEC-ubuntu.pem", "ubuntu@18.219.71.129", "source ~/.bashrc", ";", "python3", "CalCadAddr.py", "-a", str_long, "-b",str_lat, "-c", gps_dir, "-d", focallen)
 	outt, err := cmdd.Output()
 	if err != nil {
 		fmt.Println(err)
@@ -380,8 +376,8 @@ func (s *service) uploadFile(w http.ResponseWriter, r *http.Request) {
 	// 地段地號
 	dddh, ok := (kk["result"].(map[string]interface{})["cadaddr"]).(string)
 	if ok {
-		bc.DDDH = dddh
-		fmt.Println(dddh)
+            bc.DDDH = dddh
+	    fmt.Println(dddh)
 	}
 
 	bc.Lat = str_lat
@@ -430,7 +426,7 @@ func (s *service) uploadFile(w http.ResponseWriter, r *http.Request) {
 // 		fmt.Println(k)
 // 	}
 // 	defer file.Close()
-//
+// 
 // 	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 // 	cur := s.db.QueryOne(ctx, "posts", "tag", id)
 // 	if err != nil {
@@ -438,7 +434,7 @@ func (s *service) uploadFile(w http.ResponseWriter, r *http.Request) {
 // 		w.WriteHeader(http.StatusInternalServerError)
 // 		return
 // 	}
-//
+// 
 // 	k := &Post{}
 // 	err = cur.Decode(k)
 // 	if err != nil {
@@ -447,7 +443,7 @@ func (s *service) uploadFile(w http.ResponseWriter, r *http.Request) {
 // 		w.WriteHeader(http.StatusInternalServerError)
 // 		return
 // 	}
-//
+// 
 //         idd := k.ID.Hex()
 // 	// _, err = s.db.Add(ctx, "testing", image)
 // 	path := "images/"+id+"/"
@@ -482,7 +478,7 @@ func (s *service) uploadFile(w http.ResponseWriter, r *http.Request) {
 // 		return
 // 	}
 // 	fmt.Println("python3 command complete")
-//
+// 
 // 	// hash := strings.TrimSpace(string(out))
 // 	hash := strings.Split(string(out), "\n")
 // 	_id, err := primitive.ObjectIDFromHex(idd)
@@ -494,10 +490,10 @@ func (s *service) uploadFile(w http.ResponseWriter, r *http.Request) {
 // 	}
 // 	img := "http://34.201.129.123:8000/" + path
 // 	// image := &Image{ID: _id, Hash: hash, Img: img}
-//
+// 
 // 	ctx, _ = context.WithTimeout(context.Background(), 5*time.Second)
 // 	// _, err = s.db.Add(ctx, "testing", image)
-//
+// 
 // 	bc, err := s.findBcPost(ctx, "bcposts", "_id", _id)
 // 	if err != nil {
 // 		log.Println("err find bc post")
@@ -517,14 +513,14 @@ func (s *service) uploadFile(w http.ResponseWriter, r *http.Request) {
 // 	str_lat := strconv.FormatFloat(lat, 'f', 5, 64)
 // 	str_long := strconv.FormatFloat(long, 'f', 5, 64)
 // 	fmt.Println(str_lat, str_long)
-//
-//
+// 
+// 
 // 	focal, _ := x.Get(exif.FocalLength)
 // 	numer, denom, _ := focal.Rat2(0) // retrieve first (only) rat. value
 // 	focallen := fmt.Sprintf("%.3f", float64(numer)/float64(denom))
 // 	fmt.Println(focallen)
-//
-//
+// 
+// 
 // 	imgdir, _ := x.Get(exif.GPSImgDirection)
 // 	a, b, _ := imgdir.Rat2(0) // retrieve first (only) rat. value
 // 	gps_dir := fmt.Sprintf("%.15f",float64(a)/ float64(b))
@@ -546,7 +542,7 @@ func (s *service) uploadFile(w http.ResponseWriter, r *http.Request) {
 //             bc.DDDH = dddh
 // 	    fmt.Println(dddh)
 // 	}
-//
+// 
 // 	bc.Lat = str_lat
 // 	bc.Long = str_long
 // 	bc.Hash = hash[1]
@@ -562,7 +558,7 @@ func (s *service) uploadFile(w http.ResponseWriter, r *http.Request) {
 // 		return
 // 	}
 // 	fmt.Println(bc)
-//
+// 
 // 	// image := &Image{ID: _id, ImgHash: hash[0], Hash: hash[1], Img: img}
 // 	err = json.NewEncoder(w).Encode(bc)
 // 	if err != nil {
@@ -571,7 +567,7 @@ func (s *service) uploadFile(w http.ResponseWriter, r *http.Request) {
 // 		w.WriteHeader(http.StatusInternalServerError)
 // 		return
 // 	}
-//
+// 
 // 	fmt.Println("Image Hash:" + hash[0])
 // 	fmt.Println("uploaded!")
 // }
@@ -663,20 +659,13 @@ func (s *service) newUser(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(i, j)
 		trimed := strings.TrimSpace(j.(string))
 		switch i {
-		case "username":
-			user.Username = trimed
-		case "name":
-			user.Name = trimed
-		case "department":
-			user.Department = trimed
-		case "email":
-			user.Email = trimed
-		case "phone":
-			user.Phone = trimed
-		case "password":
-			user.Password = trimed
-		case "identity":
-			user.Identity = trimed
+		case "username": user.Username = trimed
+		case "name": user.Name = trimed
+		case "department": user.Department = trimed
+		case "email": user.Email = trimed
+		case "phone": user.Phone = trimed
+		case "password": user.Password = trimed
+		case "identity": user.Identity = trimed
 		default:
 		}
 	}
@@ -717,30 +706,30 @@ func (s *service) verifyUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
-	cur := s.db.QueryOne(ctx, "testuser", "username", d.Username)
+        cur := s.db.QueryOne(ctx, "testuser", "username", d.Username)
 	if cur.Err() != nil {
 		log.Println("err querying user")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
-	}
-	dec := &User{}
-	err = cur.Decode(dec)
-	if err != nil {
-		log.Println("err decoding cur")
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	if dec.Password != d.Password {
-		log.Println("wrong password")
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	err = json.NewEncoder(w).Encode(dec.Identity)
-	if err != nil {
-		log.Println("err encoding json")
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
+        }
+        dec := &User{}
+        err = cur.Decode(dec)
+        if err != nil {
+                log.Println("err decoding cur")
+                w.WriteHeader(http.StatusInternalServerError)
+                return
+        }
+        if dec.Password != d.Password {
+                log.Println("wrong password")
+                w.WriteHeader(http.StatusInternalServerError)
+                return
+        }
+        err = json.NewEncoder(w).Encode(dec.Identity)
+        if err != nil {
+                log.Println("err encoding json")
+                w.WriteHeader(http.StatusInternalServerError)
+                return
+        }
 }
 
 func (s *service) deleteUser(w http.ResponseWriter, r *http.Request) {
@@ -791,24 +780,24 @@ func (s *service) verifyUserAndReturnPost(w http.ResponseWriter, r *http.Request
 	}
 
 	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
-	cur := s.db.QueryOne(ctx, "testuser", "username", d.Username)
+        cur := s.db.QueryOne(ctx, "testuser", "username", d.Username)
 	if cur.Err() != nil {
 		log.Println("err querying user")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
-	}
-	dec := &User{}
-	err = cur.Decode(dec)
-	if err != nil {
-		log.Println("err decoding cur")
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	if dec.Password != d.Password {
-		log.Println("wrong password")
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
+        }
+        dec := &User{}
+        err = cur.Decode(dec)
+        if err != nil {
+                log.Println("err decoding cur")
+                w.WriteHeader(http.StatusInternalServerError)
+                return
+        }
+        if dec.Password != d.Password {
+                log.Println("wrong password")
+                w.WriteHeader(http.StatusInternalServerError)
+                return
+        }
 	curr, err := s.db.Query(ctx, "posts", "user", dec.Username)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -832,7 +821,7 @@ func (s *service) verifyUserAndReturnPost(w http.ResponseWriter, r *http.Request
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
-	}
+        }
 	log.Println("verifyuser call succeed!")
 }
 
@@ -966,9 +955,9 @@ func (s *service) newPost(w http.ResponseWriter, r *http.Request) {
 	}
 	progress := r.FormValue("progress")
 
-	path := "file/" + tag + "/"
+	path := "file/"+tag+"/"
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		os.Mkdir(path, 0777)
+	    os.Mkdir(path, 0777)
 	}
 	for k, _ := range files {
 		file, err := files[k].Open()
@@ -988,10 +977,12 @@ func (s *service) newPost(w http.ResponseWriter, r *http.Request) {
 		f.Close()
 	}
 
+
+
 	filename := "https://agri.csie.org:8000/" + path
 
 	_id := primitive.NewObjectID()
-	_date := time.Now().Add(time.Hour * 8).Format(time.ANSIC)
+	_date := time.Now().Add(time.Hour*8).Format(time.ANSIC)
 
 	post := &Post{ID: _id, Tag: tag, Title: title, User: user, Name: name, Date: _date, Factory: factory, Market: market, Amount: amount, Progress: progress, Paperwork: filename}
 	bc := &BCdataa{ID: _id, Tag: tag, Name: name, Factory: factory, ImgHash: []string{}, Hash: []string{}}
@@ -1020,7 +1011,6 @@ func (s *service) newPost(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 }
-
 // func (s *service) newPost(w http.ResponseWriter, r *http.Request) {
 // 	w.Header().Set("Content-Type", "application/json")
 // 	d, err := ioutil.ReadAll(r.Body)
@@ -1028,7 +1018,7 @@ func (s *service) newPost(w http.ResponseWriter, r *http.Request) {
 // 		w.WriteHeader(http.StatusInternalServerError)
 // 		return
 // 	}
-//
+// 
 // 	// var reqData map[string]string
 // 	var reqData Post
 // 	err = json.Unmarshal(d, &reqData)
@@ -1038,16 +1028,16 @@ func (s *service) newPost(w http.ResponseWriter, r *http.Request) {
 // 		return
 // 	}
 // 	fmt.Println(reqData)
-//
+// 
 // 	_id := primitive.NewObjectID()
 // 	// _date := _id.Timestamp().Local().String()
 // 	_date := time.Now().Add(time.Hour*8).Format(time.ANSIC)
-//
+// 
 // 	reqData.ID = _id
 // 	reqData.Date = _date
-//
+// 
 // 	bc := &BCdata{ID: _id, Factory: reqData.Factory}
-//
+// 
 // 	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 // 	_, err = s.db.Add(ctx, "posts", reqData)
 // 	if err != nil {
@@ -1061,7 +1051,7 @@ func (s *service) newPost(w http.ResponseWriter, r *http.Request) {
 // 			w.WriteHeader(http.StatusInternalServerError)
 // 			return
 // 		}
-//
+// 
 // 		if d, err := json.Marshal(&reqData); err != nil {
 // 			fmt.Println(err)
 // 			w.WriteHeader(http.StatusInternalServerError)
@@ -1368,7 +1358,7 @@ func (s *service) verifyHash(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusInternalServerError)
-	ret := map[string]string{"message": "Failed!!!"}
+	ret := map[string]string{"message": "Failed!!!",}
 	_ = json.NewEncoder(w).Encode(ret)
 	return
 }
@@ -1399,12 +1389,11 @@ func Cmpurlhash(Hash string, Url string) bool {
 }
 
 func main() {
-	// dbServer.RunDBServer()
-	// fmt.Println("Service is running.")
 	a := NewService("localhost", "8000")
 	a.Start("localhost", "27017", "testing")
 
 }
+
 
 // func main() {
 // 	hash := "87a82683f05597003afd42065d48375c495a1483c916dee7035c46b2a5d43d15"
