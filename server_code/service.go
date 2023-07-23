@@ -14,7 +14,7 @@ import (
 	"github.com/rwcarlsen/goexif/exif"
 	"github.com/rwcarlsen/goexif/mknote"
 	"log"
-	"server/server"
+	"mongo/server"
 	"net/http"
 	"os"
 	"os/exec"
