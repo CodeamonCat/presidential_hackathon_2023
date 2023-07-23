@@ -14,7 +14,7 @@ import (
 	"github.com/rwcarlsen/goexif/exif"
 	"github.com/rwcarlsen/goexif/mknote"
 	"log"
-	"mongo/server"
+	"server/server"
 	"net/http"
 	"os"
 	"os/exec"
@@ -150,15 +150,11 @@ func (s *service) Start(dbip string, dbport string, dbname string) error {
 	originsOk := handlers.AllowedOrigins([]string{"*"})
 	methodsOk := handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS"})
 	log.Println("server starting processing...")
-	err = http.ListenAndServeTLS(":"+s.port, "fullchain.pem", "privkey.pem", handlers.CORS(headersOk, originsOk, methodsOk)(r))
+	err = http.ListenAndServe(":"+s.port, handlers.CORS(headersOk, originsOk, methodsOk)(r))
 	if err != nil {
-	    log.Fatal("ListenAndServe: ", err)
+                fmt.Println(err)
+		return err
 	}
-	// err = http.ListenAndServe(":"+s.port, handlers.CORS(headersOk, originsOk, methodsOk)(r))
-	// if err != nil {
-        //         fmt.Println(err)
-	// 	return err
-	// }
 
 	return nil
 }
@@ -319,7 +315,7 @@ func (s *service) uploadFile(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	img := "https://agri.csie.org:8000/" + path
+	img := "http://34.201.129.123:8000/" + path
 	// image := &Image{ID: _id, Hash: hash, Img: img}
 
 	ctx, _ = context.WithTimeout(context.Background(), 5*time.Second)
@@ -346,19 +342,13 @@ func (s *service) uploadFile(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(str_lat, str_long)
 
 
-	focal, err := x.Get(exif.FocalLength)
-	if err != nil {
-		log.Println("can't extract focal length!")
-	}
+	focal, _ := x.Get(exif.FocalLength)
 	numer, denom, _ := focal.Rat2(0) // retrieve first (only) rat. value
 	focallen := fmt.Sprintf("%.3f", float64(numer)/float64(denom))
 	fmt.Println(focallen)
 
 
-	imgdir, err := x.Get(exif.GPSImgDirection)
-	if err != nil {
-		log.Println("can't extract gps!")
-	}
+	imgdir, _ := x.Get(exif.GPSImgDirection)
 	a, b, _ := imgdir.Rat2(0) // retrieve first (only) rat. value
 	gps_dir := fmt.Sprintf("%.15f",float64(a)/ float64(b))
 	fmt.Println(gps_dir)
@@ -386,7 +376,7 @@ func (s *service) uploadFile(w http.ResponseWriter, r *http.Request) {
 	bc.ImgHash = append(bc.ImgHash, hash[0])
 	bc.Image = img
 	bc.Date = date
-	bc.Chain = "Ethereum"
+	bc.Chain = "Ropsten"
 	fmt.Println(bc)
 	ctx, _ = context.WithTimeout(context.Background(), 5*time.Second)
 	res := s.db.Update(ctx, "bcposts", "_id", _id, bc)
@@ -979,7 +969,7 @@ func (s *service) newPost(w http.ResponseWriter, r *http.Request) {
 
 
 
-	filename := "https://agri.csie.org:8000/" + path
+	filename := "http://34.201.129.123:8000/" + path
 
 	_id := primitive.NewObjectID()
 	_date := time.Now().Add(time.Hour*8).Format(time.ANSIC)
